@@ -1,0 +1,114 @@
+Configuración servidor OpenVPN en Mikrotik
+
+Desarrollo
+
+Creación de Redes (Address)
+-----------------------------------------------
+
+WAN 192.168.0.0/24
+LAN 192.168.88.0/24
+VPN 192.168.10.0/24
+
+
+Creación de pool VPN
+-----------------------------------
+
+192.168.10.1 - 192.168.10.100
+
+Creación de los Certificados
+----------------------------------------------
+
+Los certificados que vamos a crear a continuación tendrán una validez de 10 años; days-valid=3650
+
+Crear certificado CA
+--------------------------------
+
+/certificate add name=CA-tpl country="ES" state="ES" locality="Madrid" organization="IT-Bilal" unit="IT" common-name="CA" key-size=4096 days-valid=3650 key-usage=crl-sign,key-cert-sign
+
+/certificate sign CA-tpl ca-crl-host=127.0.0.1 name="CA"
+
+Crear certificado Server
+-------------------------------------
+
+/certificate add name=SERVER-tpl country="ES" state="ES" locality="Madrid" organization="IT-Bilal" unit="IT" common-name="192.168.88.1" key-size=4096 days-valid=1095 key-usage=digital-signature,key-encipherment,tls-server
+
+/certificate sign SERVER-tpl ca="CA" name="SERVER"
+
+Crear certificado Cliente
+--------------------------------------
+
+/certificate add name=CLIENT-tpl country="ES" state="ES" locality="Madrid" organization="IT-Bilal" unit="IT" common-name="CLIENT" key-size=4096 days-valid=3650 key-usage=tls-client
+
+/certificate add name=CLIENT1 copy-from="CLIENT-tplx" common-name="CLIENT1"
+
+/certificate sign CLIENT1 ca="CA" name="CLIENT1"
+
+Exportar KEY Cliente
+---------------------------------
+
+/certificate export-certificate CA export-passphrase=""
+
+/certificate export-certificate CLIENT1 export-passphrase=12345678
+
+Exportar KEY con OpenSSL
+-------------------------------------------
+"C:\Program Files\OpenVPN\bin\openssl.exe" rsa -in cert_export_CLIENT1.key -out cert_export_CLIENT1.key
+
+Creación del fichero .OVPN
+-------------------------------------------
+
+client
+
+dev tun
+
+proto tcp-client
+
+remote IP [Poner IP pública o nombre DNS]
+
+port 1194 [Puerto asignado]
+
+nobind
+
+persist-key
+
+persist-tun
+
+tls-client
+
+remote-cert-tls server
+
+ca cert_export_CA.crt
+
+cert cert_export_CLIENT1.crt
+
+key  cert_export_CLIENT1.key
+
+verb 4
+
+mute 10
+
+cipher AES-256-CBC
+
+auth SHA1
+
+auth-user-pass secret
+
+auth-nocache
+
+;redirect-gateway def1
+
+Añadir reglas Firewall desde Terminal
+------------------------------------------------------------
+/ip firewall filter add action=accept chain=input comment="Aceptar conexión VPN" dst-port=1194 protocol=tcp 
+
+/ip firewall nat add chain=srcnat action=masquerade src-address=192.168.88.1/24 log=no log-prefix="" comment="Tráfico VPN a LAN"
+
+Más vídeos de Tutoriales
+----------------------------------------
+https://www.youtube.com/watch?v=FG5sM...
+
+
+Blog: https://bilaljebari.blogspot.com/
+Twitter: https://twitter.com/bilal_jebari
+
+#OpenVPN #Mikrotik #RouterOS #RouterBoard
